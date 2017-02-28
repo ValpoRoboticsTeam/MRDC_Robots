@@ -1,5 +1,4 @@
 /*
-
   __/\\\\\\\\\\\\\\\______________________________________________________
    _\/\\\///////////_______________________________________________________
    _\/\\\_____________________________________________/\\\_________________
@@ -18,9 +17,11 @@
       `"""""""`
 
   Ernie Base Drive Code
-  Technology Owners: Matt Bull
 
   /////Revision History/////
+  
+  ///2.7
+   Removing peripheral code from 2016 season
 
   ///2.6
    Some changes made at competition. These still require documentation.
@@ -54,13 +55,6 @@
    Added abiltiy to check the status of the controller battery.
   //////////////////////////
 
-
-  Revisions needed to code (may not include everything)
-  ---------------------------------
-  Ernie only has two drive motors  ~Matt
-  Ernie will soon have four drive motors... ~Matt
-  ---------------------------------
-
   Parts List
   ---------------------------------
   Uses USBHostShield 2.0
@@ -69,26 +63,18 @@
   PS3 Controller - name brand recommended
   ---------------------------------
 
-  Pin Layout
-  ---------------------------------
-  9: Left Front Motor
-  10: Left Rear Motor
-  6: Right Front Motor
-  8: Right Rear Motor
-  ---------------------------------
-
 */
 
 #include <stdio.h>
 #include <PS3BT.h>
-
 #include <usbhub.h> //these are both libraries used by the PS3 communication
+
 #ifndef DEBUG_USB_HOST //this should enable additional information to be viewed in the serial monitor
 #define DEBUG_USB_HOST
 #endif
+
 #include <Servo.h>  //used to interface with victors. included here so compiler knows to have it for the drivetrain library
 #include <math.h>
-
 
 //----------------------------------------------------------------------
 //////////////////////////////////////////////////////////////
@@ -97,11 +83,8 @@
 //Comment out a line to disable that function.
 
 #define ENABLE_DRIVE
-#define ENABLE_GOVERNOR_CHANGE //comment out this line to lock the governor
-#define ARM_READY //uncomment this to enable the left arm shoulder motor
-#define BUCKET_READY //uncomment this to enable the bucket motor
-//#define ENABLE_MOTOR_ADJUST //disabled to prevent accidental adjustment
-//#define ENABLE_VOLT_MEASURE //disabled because the physical implementation occasionally killed an arduino...
+//#define ENABLE_GOVERNOR_CHANGE //comment out this line to lock the governor   <--- investigate what this governor is, rename 
+
 
 //----------------------------------------------------------------------
 
@@ -112,24 +95,12 @@
 #define LR_MOTOR 11
 #define RR_MOTOR 9
 
-#define LEFT_ARM 6
-#define BALL_SERVO 5
-#define WRIST_SERVO 3
-#define BUCKET 2
-#define WRIST 4
+
 //----------------------------------------------------------------------
 
 //If one of the motors is spinning when stopped, adjust it's offset here
 #define LEFT_ADJUST 0
 #define RIGHT_ADJUST 0
-#define WRIST_DELAY 15 //this is the number of loops the program will go through between allowing wrist servo value to be changed
-//------------------------------------------------------------
-//This is for measuring battery voltage
-#define NUM_SAMPLES 5
-int sum = 0;                    // sum of samples taken
-unsigned char sample_count = 0; // current sample number
-float voltage = 0.0;            // calculated voltage
-//------------------------------------------------------------
 
 //Ignore this part, it's just PS3 magic we copied and pasted...
 //------------------------------------------------------------
@@ -213,10 +184,6 @@ void setup() {
 void loop() {
   // put your main code here, to run repeatedly:
   Usb.Task(); //We think this updates the USB buffers     "USB main task. Performs enumeration/cleanup" ~matt
-
-#ifdef ENABLE_VOLT_MEASURE // if ENABLE_VOLT_MEASURE is defined do everything between here
-  if (!(PS3.getButtonClick(SELECT)))voltMeasure(); //Calls the voltage measurement function
-#endif //and here
 
   if (PS3.PS3Connected)
   {
@@ -418,29 +385,6 @@ void arm()
   else bucket.writeMicroseconds(1500);
 }
 
-void voltMeasure() //A0 is measurement pin
-{
-  // take a number of analog samples and add them up
-  if (sample_count < NUM_SAMPLES) {
-    sum += analogRead(A0);
-    sample_count++;
-  }
-  else {
-    // calculate the voltage
-    // use 5.0 for a 5.0V ADC reference voltage
-    // 5.015V is the calibrated reference voltage
-    voltage = ((float)sum / (float)NUM_SAMPLES * 4.98) / 1024.0;
-    // send voltage for display on Serial Monitor
-    // voltage multiplied by 11 when using voltage divider that
-    // divides by 11. 11.132 is the calibrated voltage divide
-    // value
-    Serial.print(voltage * 11.47);
-    Serial.println (" V");
-    sample_count = 0;
-    sum = 0;
-  }
-}
-
 // Gets status of the PS3 controllers battery and turns on LEDs to represent state of charge.
 
 void battStat()
@@ -452,7 +396,7 @@ void battStat()
   else if (PS3.getStatus(Shutdown)) PS3.setLedRaw(9); //Turns on LEDs: 1,4   Not entirely sure if this is the lowest reportable battery level, or if the controller is actually turned off.
   else PS3.setLedRaw(9);
 }
-
+/*
 void governor()
 {
   if (PS3.getButtonPress(CROSS)) {
@@ -470,3 +414,4 @@ void governor()
     PS3.setRumbleOn(20, 255, 10, 0); //turns on the vibration motors. 10 is duration in ms for left and right motors. 255 is the power
   }
 }
+*/
