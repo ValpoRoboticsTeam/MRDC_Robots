@@ -21,7 +21,9 @@
   /////Revision History/////
   
   ///2.7
-   Removing peripheral code from 2016 season
+   -Removing peripheral code from 2016 season
+   -Rough Draft of peripheral code for 2017 season. Control scheme has not been implemented yet.
+    This is just assigning motors to buttons for testing.
 
   ///2.6
    Some changes made at competition. These still require documentation.
@@ -132,6 +134,22 @@ Servo ballRoller;
 Servo ballActuator;
 Servo keyRoller;
 Servo gutterMotor;
+
+#define LIFTER_UP_VALUE  150
+#define LIFTER_DOWN_VALUE 30
+
+#define BALL_ROLLER_IN_VALUE 150
+#define BALL_ROLLER_OUT_VALUE 30
+
+#define BALL_ACTUATOR_UP_VALUE 180
+#define BALL_ACTUATOR_DOWN_VALUE 0
+
+#define KEY_ROLLER_IN_VALUE 150
+#define KEY_ROLLER_OUT_VALUE 30
+
+int gutterInput = 0;
+int gutterValue = 0;
+
 #endif
 //----------------------------------------------------------------------
 
@@ -164,7 +182,7 @@ void setup() {
 
 #ifdef PERIPHERALS
   lifterMotor.attach(LIFTER_MOTOR);
-  lifter.writeMicroseconds(1500);
+  lifterMotor.writeMicroseconds(1500);
   ballRoller.attach(BALL_ROLLER);
   ballRoller.writeMicroseconds(1500);
   ballActuator.attach(BALL_ACTUATOR);
@@ -295,16 +313,17 @@ void drive()
   rrmotor.write(right);
 }
 
+#ifdef PERIPHERALS
 void peripherals()
 {
   // for right now, this is just a place to dump control of all the peripherals. When we develop the actual control scheme
   // we will actually split this into and inputs function and a peripherals function. for right now we just want to 
   // prove that all the parts move
 
-  // lifter controls
-  if(PS3.getButtonPress(TRIANGLE)) lifter.write(LIFTER_UP_VALUE);
-  else if(PS3.getButtonPress(CROSS)) lifter.write(LIFTER_DOWN_VALUE);
-  else lifter.write(1500);
+  // lifterMotor controls
+  if(PS3.getButtonPress(TRIANGLE)) lifterMotor.write(LIFTER_UP_VALUE);
+  else if(PS3.getButtonPress(CROSS)) lifterMotor.write(LIFTER_DOWN_VALUE);
+  else lifterMotor.write(1500);
 
   // ballRoller controls
   if(PS3.getButtonPress(CIRCLE)) ballRoller.write(BALL_ROLLER_IN_VALUE);
@@ -315,7 +334,29 @@ void peripherals()
   if(PS3.getButtonPress(UP)) ballActuator.write(BALL_ACTUATOR_UP_VALUE);
   else if(PS3.getButtonPress(DOWN)) ballActuator.write(BALL_ACTUATOR_DOWN_VALUE);
   else ballActuator.write(1500);
+
+  // keyRoller controlls
+  if(PS3.getButtonPress(R1)) keyRoller.write(KEY_ROLLER_IN_VALUE);
+  else if(PS3.getButtonPress(L1)) keyRoller.write(KEY_ROLLER_OUT_VALUE);
+  else ballRoller.write(1500);
+
+  // gutterMotor controls -- this one is different because we want analog control
+  int gutterDownInput = map(PS3.getAnalogButton(R2), 0, 255, 0,  90); //just temp values that's why it's not global
+  int gutterUpInput   = map(PS3.getAnalogButton(L2), 0, 255, 0, -90);
+
+  if(abs(gutterDownInput) > abs(gutterUpInput)) gutterInput = gutterDownInput;
+  else                                          gutterInput = gutterUpInput;
+
+  if(gutterInput > gutterValue) gutterValue++;
+  else if(gutterInput < gutterValue) gutterValue--;
+
+  if(gutterValue > 180) gutterValue = 180;
+  else if(gutterValue < 0) gutterValue = 0;
+  
+  gutterMotor.write(gutterValue + 90);
+  
 }
+#endif
 
 /*
   Completely stops the motors
@@ -330,7 +371,7 @@ void stop()
 
   
 #ifdef PERIPHERALS
-  lifter.writeMicroseconds(1500);
+  lifterMotor.writeMicroseconds(1500);
   ballRoller.writeMicroseconds(1500);
   ballActuator.writeMicroseconds(1500);
   keyRoller.writeMicroseconds(1500);
