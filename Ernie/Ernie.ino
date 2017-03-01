@@ -138,14 +138,18 @@ Servo gutterMotor;
 #define LIFTER_UP_VALUE  150
 #define LIFTER_DOWN_VALUE 30
 
-#define BALL_ROLLER_IN_VALUE 150
-#define BALL_ROLLER_OUT_VALUE 30
+#define BALL_ROLLER_IN_VALUE 180
+#define BALL_ROLLER_OUT_VALUE 0
 
 #define BALL_ACTUATOR_UP_VALUE 180
 #define BALL_ACTUATOR_DOWN_VALUE 0
 
 #define KEY_ROLLER_IN_VALUE 150
 #define KEY_ROLLER_OUT_VALUE 30
+
+#define GUTTER_UP_VALUE 110
+#define GUTTER_DOWN_VALUE 70
+#define GUTTER_STOP_VALUE 100
 
 int gutterInput = 0;
 int gutterValue = 0;
@@ -338,23 +342,36 @@ void peripherals()
   // keyRoller controlls
   if(PS3.getButtonPress(R1)) keyRoller.write(KEY_ROLLER_IN_VALUE);
   else if(PS3.getButtonPress(L1)) keyRoller.write(KEY_ROLLER_OUT_VALUE);
-  else ballRoller.write(1500);
+  else keyRoller.write(1500);
 
   // gutterMotor controls -- this one is different because we want analog control
+  if(PS3.getButtonPress(R2)) gutterMotor.write(GUTTER_UP_VALUE);
+  else if(PS3.getButtonPress(L2)) gutterMotor.write(GUTTER_DOWN_VALUE);
+  else gutterMotor.write(GUTTER_STOP_VALUE);
+  /*
   int gutterDownInput = map(PS3.getAnalogButton(R2), 0, 255, 0,  90); //just temp values that's why it's not global
   int gutterUpInput   = map(PS3.getAnalogButton(L2), 0, 255, 0, -90);
 
   if(abs(gutterDownInput) > abs(gutterUpInput)) gutterInput = gutterDownInput;
   else                                          gutterInput = gutterUpInput;
 
-  if(gutterInput > gutterValue) gutterValue++;
-  else if(gutterInput < gutterValue) gutterValue--;
+  if(abs(gutterInput) < 10) gutterInput = 0;
+  if(gutterInput == 0)
+  {
+    gutterMotor.write(1500);
+  }
+  else
+  {
+    if(gutterInput > gutterValue) gutterValue++;
+    else if(gutterInput < gutterValue) gutterValue--;
 
-  if(gutterValue > 180) gutterValue = 180;
-  else if(gutterValue < 0) gutterValue = 0;
+    if(gutterValue > 180) gutterValue = 180;
+    else if(gutterValue < 0) gutterValue = 0;
   
-  gutterMotor.write(gutterValue + 90);
-  
+    gutterMotor.write(gutterValue + 90);
+   
+  }
+  */
 }
 #endif
 
