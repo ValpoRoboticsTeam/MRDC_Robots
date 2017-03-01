@@ -83,6 +83,7 @@
 //Comment out a line to disable that function.
 
 #define ENABLE_DRIVE
+#define PERIPHERALS  //2017 PERIPHERALS
 //#define ENABLE_GOVERNOR_CHANGE //comment out this line to lock the governor   <--- investigate what this governor is, rename 
 
 
@@ -95,7 +96,13 @@
 #define LR_MOTOR 11
 #define RR_MOTOR 9
 
-
+#ifdef PERIPHERALS
+#define LIFTER_MOTOR     2 //we need a better name
+#define BALL_ROLLER      3
+#define BALL_ACTUATOR    4
+#define KEY_ROLLER       5
+#define GUTTER_MOTOR     6
+#endif
 //----------------------------------------------------------------------
 
 //If one of the motors is spinning when stopped, adjust it's offset here
@@ -117,16 +124,19 @@ Servo lfmotor;
 Servo rfmotor;
 Servo lrmotor;
 Servo rrmotor;
-Servo leftArm;
-Servo bucket;
-Servo wrist;
+
+#ifdef PERIPHERALS
 //servo objects
-Servo ballServo;
-Servo wristServo;
+Servo lifterMotor;
+Servo ballRoller;
+Servo ballActuator;
+Servo keyRoller;
+Servo gutterMotor;
+#endif
 //----------------------------------------------------------------------
 
 //----------------------------------------------------------------------
-#define initialMotorCorrect 3
+#define initialMotorCorrect 0
 #define initialHandicap 4
 #define initialArmHoldPower 100
 int driveMode = 0; // 0 for yx control, 1 for yy control
@@ -141,12 +151,7 @@ int right = 0;
 int handicap = initialHandicap; //speed limited mode
 int noHandicap = 1; //not speed limited
 int turnhandicap = 1; //This value gets changed by the governor function to reduce trun speed when speed governor is removed
-int ballservoPos = 1;
-int wristPos = 90;
-int wristLoop = 0;
-int armDown = 0, armUp = 0; //for fine control of robot arm
-int armHold = 0; //toggle for holding arm
-int armHoldPower = initialArmHoldPower;
+
 //----------------------------------------------------------------------
 
 
@@ -157,18 +162,18 @@ void setup() {
   lrmotor.attach(LR_MOTOR);
   rrmotor.attach(RR_MOTOR);
 
-#ifdef ARM_READY
-  ballServo.attach(BALL_SERVO);
-  ballServo.write(180); //ensure open at start
-  leftArm.attach(LEFT_ARM, 1000, 2000);
-  wrist.attach(WRIST, 1000, 2000);
-  wristServo.attach(WRIST_SERVO, 1050, 1950); //1050 and 1950 are the min and max PWM width in μs
-  wristServo.write(wristPos); //ensures at center position at startup
+#ifdef PERIPHERALS
+  lifterMotor.attach(LIFTER_MOTOR);
+  lifter.writeMicroseconds(1500);
+  ballRoller.attach(BALL_ROLLER);
+  ballRoller.writeMicroseconds(1500);
+  ballActuator.attach(BALL_ACTUATOR);
+  ballActuator.writeMicroseconds(1500);
+  keyRoller.attach(KEY_ROLLER);
+  keyRoller.writeMicroseconds(1500);
+  gutterMotor.attach(GUTTER_MOTOR);
+  gutterMotor.writeMicroseconds(1500);
 #endif
-#ifdef BUCKET_READY
-  bucket.attach(BUCKET, 1000, 2000);
-#endif
-
   //Initialize the USB port, with an error catch. New Programmers can ignore this section
   //-------------------------------------------------------------------------------------
   Serial.begin(115200);
@@ -207,12 +212,8 @@ void loop() {
     drive();
 #endif
 
-#ifdef ARM_READY
-    arm();
-#endif
-
-#ifdef ENABLE_GOVERNOR_CHANGE
-    if (PS3.getButtonClick(CIRCLE)) governor(); //Shhh! It's a secret!
+#ifdef PERIPHERALS
+    peripherals();
 #endif
   }
 
@@ -236,23 +237,6 @@ void driveInputs() {
   leftYinput = map(PS3.getAnalogHat(LeftHatY), 0, 255, -90, 90); //left joystick y-axis
   //    rightYinput = map(PS3.getAnalogHat(RightHatY), 0, 255, -90, 90); //right joystick y-axis
   xInput = map(PS3.getAnalogHat(RightHatX), 0, 255, -90, 90); //x-axis
-  //    Serial.print((PS3.getAnalogHat(LeftHatY)));
-  //    Serial.print("\t");
-  //    Serial.print((leftYinput));
-  //    Serial.print("\t");
-  //    Serial.print((left));
-  //    Serial.print("\t");
-  //    Serial.print((PS3.getAnalogHat(RightHatX)));
-  //    Serial.print("\t");
-  //    Serial.print((xInput));
-  //    Serial.print("\t");
-  //    Serial.print(right);
-
-  //    Serial.print("\n");
-  //    Serial.print(PS3.getAnalogButton(UP));
-  //    Serial.print("\t");
-  //    Serial.print(PS3.getAnalogButton(DOWN));
-  //    Serial.print("\t");
 
   /*
      Joysticks have a "sticky" area around the middle of the joystick - this means they never go back
@@ -260,7 +244,6 @@ void driveInputs() {
      it is zero.
   */
   if (abs(leftYinput) < 10)leftYinput = 0;
-  if (abs(rightYinput) < 10)rightYinput = 0;
   if (abs(xInput) < 10)xInput = 0;
 
 #ifdef ENABLE_MOTOR_ADJUST
@@ -312,6 +295,28 @@ void drive()
   rrmotor.write(right);
 }
 
+void peripherals()
+{
+  // for right now, this is just a place to dump control of all the peripherals. When we develop the actual control scheme
+  // we will actually split this into and inputs function and a peripherals function. for right now we just want to 
+  // prove that all the parts move
+
+  // lifter controls
+  if(PS3.getButtonPress(TRIANGLE)) lifter.write(LIFTER_UP_VALUE);
+  else if(PS3.getButtonPress(CROSS)) lifter.write(LIFTER_DOWN_VALUE);
+  else lifter.write(1500);
+
+  // ballRoller controls
+  if(PS3.getButtonPress(CIRCLE)) ballRoller.write(BALL_ROLLER_IN_VALUE);
+  else if(PS3.getButtonPress(SQUARE)) ballRoller.write(BALL_ROLLER_OUT_VALUE);
+  else ballRoller.write(1500);
+
+  // ballActuator controls
+  if(PS3.getButtonPress(UP)) ballActuator.write(BALL_ACTUATOR_UP_VALUE);
+  else if(PS3.getButtonPress(DOWN)) ballActuator.write(BALL_ACTUATOR_DOWN_VALUE);
+  else ballActuator.write(1500);
+}
+
 /*
   Completely stops the motors
   IMPORTANT NOTE: This is the equivalent of putting your car in NEUTRAL, if on a hill, it will roll! If it's already moving, it will coast!
@@ -322,68 +327,17 @@ void stop()
   rfmotor.writeMicroseconds(1500);
   lrmotor.writeMicroseconds(1500);
   rrmotor.writeMicroseconds(1500);
-  leftArm.writeMicroseconds(1500);
-  wrist.writeMicroseconds(1500);
-  bucket.writeMicroseconds(1500);
+
+  
+#ifdef PERIPHERALS
+  lifter.writeMicroseconds(1500);
+  ballRoller.writeMicroseconds(1500);
+  ballActuator.writeMicroseconds(1500);
+  keyRoller.writeMicroseconds(1500);
+  gutterMotor.writeMicroseconds(1500);
+#endif
 }
 
-void arm()
-{
-  if (PS3.getButtonClick(START)) {//this toggles the armHold mode on and off
-    if (armHold == 1) {//if armHold is on
-      armHold = 0; //turn armHold off
-      PS3.setLedOff(LED3); //turn off LED3
-    }
-    else {
-      armHold = 1; //turn armHold on
-      PS3.setLedOn(LED3); //turn on LED3 so user knows armHold mode is currently on
-    }
-  }
-  armDown = map(PS3.getAnalogButton(L2), 0, 255, 90, 70);
-  armUp = map(PS3.getAnalogButton(R2), 0, 255, 90, 115);
-  if (armDown != 90) leftArm.write(armDown); //down
-  else if (armUp != 90) leftArm.write(armUp); //up
-  else if (armHold == 1) {
-    leftArm.write(armHoldPower); //the armHold function is meant to counteract the force of gravity to hold the arm
-    if (PS3.getButtonPress(SELECT)) {//while the select button is held...
-      if (PS3.getButtonClick(CIRCLE) && armHoldPower < 115) armHoldPower++;//clicking circle will increase armHoldPower
-      if (PS3.getButtonClick(CROSS)) armHoldPower = initialArmHoldPower;//clicking cross will set armHoldPower to the defined initialArmHoldPower
-    }
-  }
-  else leftArm.writeMicroseconds(1500); //stop
-//  Serial.print((armUp)); //allow
-//  Serial.print("\t");
-//  Serial.println((armHoldPower)); //allow
-
-  if (PS3.getButtonClick(R1)) {
-    if (ballservoPos == 0) {
-      ballServo.write(180); //close
-      ballservoPos = 1;
-    }
-    else if (ballservoPos == 1) {
-      ballServo.write(90); //open
-      ballservoPos = 0;
-    }
-  }
-  if (wristLoop >= WRIST_DELAY) {
-    if (PS3.getButtonPress(UP) && wristPos < 180) wristPos++;
-    if (PS3.getButtonPress(DOWN) && wristPos > 0) wristPos--;
-    wristLoop = 0;
-  }
-  else wristLoop++;
-  wristServo.write(wristPos);
-  if (PS3.getButtonPress(RIGHT)) wrist.write(180);
-  else if (PS3.getButtonPress(LEFT)) wrist.write(0);
-  else wrist.write(90);
-
-  if (PS3.getButtonPress(SQUARE)) {
-    bucket.write(0);
-  }
-  else if (PS3.getButtonPress(TRIANGLE)) {
-    bucket.write(180);
-  }
-  else bucket.writeMicroseconds(1500);
-}
 
 // Gets status of the PS3 controllers battery and turns on LEDs to represent state of charge.
 
