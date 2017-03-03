@@ -84,6 +84,7 @@
 //////////////////////////////////////////////////////////////
 //Comment out a line to disable that function.
 
+//#define DEBUG
 #define ENABLE_DRIVE
 #define PERIPHERALS  //2017 PERIPHERALS
 //#define ENABLE_GOVERNOR_CHANGE //comment out this line to lock the governor   <--- investigate what this governor is, rename 
@@ -135,8 +136,8 @@ Servo ballActuator;
 Servo keyRoller;
 Servo gutterMotor;
 
-#define LIFTER_UP_VALUE  150
-#define LIFTER_DOWN_VALUE 30
+#define LIFTER_UP_VALUE  180
+#define LIFTER_DOWN_VALUE 0
 
 #define BALL_ROLLER_IN_VALUE 180
 #define BALL_ROLLER_OUT_VALUE 0
@@ -144,17 +145,18 @@ Servo gutterMotor;
 #define BALL_ACTUATOR_UP_VALUE 180
 #define BALL_ACTUATOR_DOWN_VALUE 0
 
-#define KEY_ROLLER_IN_VALUE 150
-#define KEY_ROLLER_OUT_VALUE 30
+#define KEY_ROLLER_IN_VALUE 105
+#define KEY_ROLLER_OUT_VALUE 75
 
 #define GUTTER_UP_VALUE 110
-#define GUTTER_DOWN_VALUE 70
+#define GUTTER_DOWN_VALUE 80
 #define GUTTER_STOP_VALUE 100
+#define GUTTER_HANDICAP_VALUE 4
 
 int triggerInput = 0;
 int triggerValue = 0;
 
-#define PRIMARY 0 
+#define PRIMARY   0 
 #define SECONDARY 1
 
 int peripheralState = PRIMARY;
@@ -163,20 +165,25 @@ int peripheralState = PRIMARY;
 //----------------------------------------------------------------------
 
 //----------------------------------------------------------------------
-#define initialMotorCorrect 0
-#define initialHandicap 4
-#define initialArmHoldPower 100
-int driveMode = 0; // 0 for yx control, 1 for yy control
-int motorCorrect = initialMotorCorrect;
-int Drive = 0; //Initial speed before turning calculations
-int Turn = 0; //Turn is adjustment to drive for each motor separately to create turns
+#define INITIAL_HANDICAP 4
+
+#define TANK 0
+#define ARCADE 1
+
+#define FORWARD   1
+#define BACKWARD -1
+
+int driveDirection = FORWARD;
+int driveMode = TANK; // 0 for yx control, 1 for yy control
+int arcadeDrive = 0; //Initial speed before turning calculations
+int arcadeTurn = 0; //Turn is adjustment to drive for each motor separately to create turns
 int leftYinput = 0; //Tank Drive input variables
 int rightYinput = 0;
-int xInput = 0;
-int left = 0;
-int right = 0;
-int handicap = initialHandicap; //speed limited mode
-int noHandicap = 1; //not speed limited
+int rightXinput = 0;
+int leftTankDrive  = 0;
+int rightTankDrive = 0;
+int handicap = INITIAL_HANDICAP; //speed limited mode
+int motorCorrect = 0;
 int turnhandicap = 1; //This value gets changed by the governor function to reduce trun speed when speed governor is removed
 
 //----------------------------------------------------------------------
@@ -261,35 +268,18 @@ void driveInputs() {
     So we map the controller input from it's original range of 0-255 to a range of -90-90.
     Victors use a range of 0-180. Reflecting this range over 0 makes some of the math to come simpler.
   */
-  leftYinput = map(PS3.getAnalogHat(LeftHatY), 0, 255, -90, 90); //left joystick y-axis
-  //    rightYinput = map(PS3.getAnalogHat(RightHatY), 0, 255, -90, 90); //right joystick y-axis
-  xInput = map(PS3.getAnalogHat(RightHatX), 0, 255, -90, 90); //x-axis
+  leftYinput  = map(PS3.getAnalogHat(LeftHatY),  0, 255, -90, 90); //left joystick y-axis
+  rightYinput = map(PS3.getAnalogHat(RightHatY), 0, 255, -90, 90); //right joystick y-axis
+  rightXinput = map(PS3.getAnalogHat(RightHatX), 0, 255, -90, 90); //x-axis
 
   /*
      Joysticks have a "sticky" area around the middle of the joystick - this means they never go back
      to true zero. So we have to check and see if the joystick is "close enough", in which case we say
      it is zero.
   */
-  if (abs(leftYinput) < 10)leftYinput = 0;
-  if (abs(xInput) < 10)xInput = 0;
-
-#ifdef ENABLE_MOTOR_ADJUST
-  /*
-     Press UP or DOWN on the D-pad to edit the correction values. Now with HAPTICK feedback! Whoohoo!
-  */
-  if (PS3.getButtonClick(RIGHT))
-  {
-    motorCorrect++;
-    if (motorCorrect != initialMotorCorrect)PS3.setRumbleOn(10, 0, 15, 255); //turns on the vibration motors. 10 is duration in ms for left and right motors. 255 is the power
-    else PS3.setRumbleOn(20, 255, 15, 255);
-  }
-  if (PS3.getButtonClick(LEFT))
-  {
-    motorCorrect--;
-    if (motorCorrect != initialMotorCorrect)PS3.setRumbleOn(10, 255, 10, 0); //turns on the vibration motors. 10 is duration in ms for left and right motors. 255 is the power
-    else PS3.setRumbleOn(20, 255, 20, 255);
-  }
-#endif
+  if (abs(leftYinput)  < 10) leftYinput = 0;
+  if (abs(rightYinput) < 10)rightYinput = 0;
+  if (abs(rightXinput) < 10)rightXinput = 0;
 }
 
 void drive()
@@ -297,29 +287,90 @@ void drive()
   //Instead of following some sort of equation to slow down acceleration
   //We just increment the speed by one towards the desired speed.
   //The acceleration is then slowed because of the loop cycle time
-  if (Drive < leftYinput)Drive++; //Accelerates
-  else if (Drive > leftYinput) Drive--; //Decelerates
-
-  if (Turn < xInput) Turn++;
-  else if (Turn > xInput) Turn--;
-
-  int ThrottleL = ((Drive - (Turn / turnhandicap)) / handicap) + LEFT_ADJUST; //This is the final variable that decides motor speed.
-  int ThrottleR = ((Drive + (Turn / turnhandicap)) / handicap) + RIGHT_ADJUST;
-  if (PS3.getButtonClick(SELECT)) { // This will flip the direction of the left stick to allow easier driving in reverse.
-    ThrottleL = ((Drive + (Turn / turnhandicap)) / handicap) + LEFT_ADJUST;
-    ThrottleR = ((Drive - (Turn / turnhandicap)) / handicap) + RIGHT_ADJUST;
-    ThrottleL = -ThrottleL;
-    ThrottleR = -ThrottleR;
+  if(PS3.getButtonPress(RIGHT))
+  {
+    if(PS3.getButtonClick(R3))
+    {
+      if(TANK == driveMode)
+      {
+        driveMode = ARCADE;
+        PS3.setRumbleOn(10,255,10,255);
+        arcadeDrive = arcadeTurn = leftTankDrive = rightTankDrive = 0;
+      }
+      else
+      {
+        driveMode = TANK;
+        PS3.setRumbleOn(10,255,10,255);
+        arcadeDrive = arcadeTurn = leftTankDrive = rightTankDrive = 0;
+      }
+    }
   }
-  if (ThrottleL > 90) ThrottleL = 90;
-  if (ThrottleR > 90) ThrottleR = 90;
 
-  left = (-ThrottleL + 90 + motorCorrect);
-  right = (ThrottleR + 90 + motorCorrect);
-  lfmotor.write(left); //Sending values to the speed controllers
-  rfmotor.write(right);
-  lrmotor.write(left); //Send values to the rear speed controllers.
-  rrmotor.write(right);
+  if(PS3.getButtonClick(SELECT))
+  {
+    if(FORWARD == driveDirection)
+    {
+      driveDirection = BACKWARD;
+      PS3.setRumbleOn(10,255,0,255);
+    }
+    else
+    {
+      driveDirection = FORWARD;
+      PS3.setRumbleOn(0,255,10,255);
+    }
+  }
+
+  if(ARCADE == driveMode)
+  {
+    if (arcadeDrive < leftYinput)arcadeDrive++; //Accelerates
+    else if (arcadeDrive > leftYinput) arcadeDrive--; //Decelerates
+
+    if (arcadeTurn < rightXinput) arcadeTurn++;
+    else if (arcadeTurn > rightXinput) arcadeTurn--;
+
+    int ThrottleL = ((arcadeDrive - (arcadeTurn / turnhandicap)) / handicap) + LEFT_ADJUST; //This is the final variable that decides motor speed.
+    int ThrottleR = ((arcadeDrive + (arcadeTurn / turnhandicap)) / handicap) + RIGHT_ADJUST;
+    if (BACKWARD == driveDirection) 
+    { // This will flip the direction of the left stick to allow easier driving in reverse.
+      ThrottleL = ((arcadeDrive + (arcadeTurn / turnhandicap)) / handicap) + LEFT_ADJUST;
+      ThrottleR = ((arcadeDrive - (arcadeTurn / turnhandicap)) / handicap) + RIGHT_ADJUST;
+      ThrottleL = -ThrottleL;
+      ThrottleR = -ThrottleR;
+    }
+    if (ThrottleL > 90) ThrottleL = 90;
+    if (ThrottleR > 90) ThrottleR = 90;
+  
+    int left = (-ThrottleL + 90 + motorCorrect);
+    int right = (ThrottleR + 90 + motorCorrect);
+    lfmotor.write(left); //Sending values to the speed controllers
+    rfmotor.write(right);
+    lrmotor.write(left); //Send values to the rear speed controllers.
+    rrmotor.write(right);
+  }
+  else // TANK DRIVE
+  {
+    if(leftTankDrive < leftYinput)      leftTankDrive++;
+    else if(leftTankDrive > leftYinput) leftTankDrive--;
+
+    if(rightTankDrive < rightYinput)      rightTankDrive++;
+    else if(rightTankDrive > rightYinput) rightTankDrive--;
+
+    if(FORWARD == driveDirection)
+    {
+      lfmotor.write(-leftTankDrive +90); //Sending values to the speed controllers
+      rfmotor.write(rightTankDrive+90);
+      lrmotor.write(-leftTankDrive +90); //Send values to the rear speed controllers.
+      rrmotor.write(rightTankDrive+90);
+    }
+    else
+    {
+      rfmotor.write(-leftTankDrive +90); //Sending values to the speed controllers
+      lfmotor.write(rightTankDrive+90);
+      rrmotor.write(-leftTankDrive +90); //Send values to the rear speed controllers.
+      lrmotor.write(rightTankDrive+90);
+    }
+  }
+  
 }
 
 #ifdef PERIPHERALS
@@ -330,10 +381,15 @@ void peripherals()
   // prove that all the parts move
 
   if(PS3.getButtonClick(START)) {
-    if (PRIMARY == peripheralState) {
+    if (PRIMARY == peripheralState) 
+    {
       peripheralState = SECONDARY;          //primary/secondary mode control
-    if (SECONDARY == peripheralState) {
+      PS3.setLedRaw(9);
+    }
+    else // state is SECONDARY 
+    {
       peripheralState = PRIMARY; 
+      PS3.setLedRaw(1);
     }
   }
 
@@ -373,86 +429,28 @@ void peripherals()
 
   if(triggerInput > triggerValue) triggerValue++;
   else if(triggerInput < triggerValue) triggerValue--;
-
+  
+  #ifdef DEBUG
+    Serial.println(triggerValue);
+  #endif
   if(PRIMARY == peripheralState)
   {
-    
-  }
-  
-  // ballRoller controls   
-  if (PRIMARY == peripheralState) 
-  { 
-    if(PS3.getButtonPress(SQUARE)) ballRoller.write(BALL_ROLLER_IN_VALUE);
-    else if(PS3.getButtonPress(CIRCLE)) ballRoller.write(BALL_ROLLER_OUT_VALUE);
-    else ballRoller.writeMicroseconds(1500);
+    if(!triggerValue) gutterMotor.write(GUTTER_STOP_VALUE);
+    else gutterMotor.write((triggerValue/GUTTER_HANDICAP_VALUE)+90);
 
-    // ballActuator controls      ***ball lifter***
     if(PS3.getButtonPress(TRIANGLE)) ballActuator.write(BALL_ACTUATOR_UP_VALUE);
     else if(PS3.getButtonPress(CROSS)) ballActuator.write(BALL_ACTUATOR_DOWN_VALUE);
-    else ballActuator.writeMicroseconds(1500);
-  } 
-  else 
-  {
-      if(PS3.getButtonPress(R1)) ballRoller.write(BALL_ROLLER_IN_VALUE);
-      else if(PS3.getButtonPress(L1)) ballRoller.write(BALL_ROLLER_OUT_VALUE);
-      else ballRoller.writeMicroseconds(1500);
-
-      // ballActuator controls      ***ball lifter***
-     if(PS3.getButtonPress(R2)) ballActuator.write(BALL_ACTUATOR_UP_VALUE);
-      else if(PS3.getButtonPress(L2)) ballActuator.write(BALL_ACTUATOR_DOWN_VALUE);
-     else ballActuator.writeMicroseconds(1500);
-  }
-
-  // keyRoller controls      ***
-  if (PRIMARY == peripheralState) 
-  {
-    if(PS3.getButtonPress(R1)) keyRoller.write(KEY_ROLLER_IN_VALUE);
-    else if(PS3.getButtonPress(L1)) keyRoller.write(KEY_ROLLER_OUT_VALUE);
-    else keyRoller.writeMicroseconds(1500);
-  
-    // gutterMotor controls -- this one is different because we want analog control
-    if(PS3.getButtonPress(R2)) gutterMotor.write(GUTTER_UP_VALUE);
-    else if(PS3.getButtonPress(L2)) gutterMotor.write(GUTTER_DOWN_VALUE);
-    else gutterMotor.write(GUTTER_STOP_VALUE);
-  }
-
-  else if (SECONDARY == peripheralState) 
-  {
-    if (PRIMARY == peripheralState) {
-    if(PS3.getButtonPress(SQUARE)) keyRoller.write(KEY_ROLLER_IN_VALUE);
-    else if(PS3.getButtonPress(CIRCLE)) keyRoller.write(KEY_ROLLER_OUT_VALUE);
-    else keyRoller.writeMicroseconds(1500);
-  
-    // gutterMotor controls -- this one is different because we want analog control
-    if(PS3.getButtonPress(TRIANGLE)) gutterMotor.write(GUTTER_UP_VALUE);
-    else if(PS3.getButtonPress(CROSS)) gutterMotor.write(GUTTER_DOWN_VALUE);
-    else gutterMotor.write(GUTTER_STOP_VALUE);
-  }
-  /*
-  int gutterDownInput = map(PS3.getAnalogButton(L2), 0, 255, 0, -90); //just temp values that's why it's not global
-  int gutterUpInput   = map(PS3.getAnalogButton(R2), 0, 255, 0,  90);
-
-  if(abs(gutterDownInput) > abs(gutterUpInput)) gutterInput = gutterDownInput;
-  else                                          gutterInput = gutterUpInput;
-
-  if(abs(gutterInput) < 10) gutterInput = 0;
-  if(gutterInput == 0)
-  {
-    gutterMotor.writeMicroseconds(1500);
+    else ballActuator.writeMicroseconds(1500);    
   }
   else
   {
-    if(gutterInput > gutterValue) gutterValue++;
-    else if(gutterInput < gutterValue) gutterValue--;
-
-    if(gutterValue > 180) gutterValue = 180;
-    else if(gutterValue < 0) gutterValue = 0;
-
-    Serial.println(gutterValue);
-    gutterMotor.write(gutterValue + 90);
-   
+    if(!triggerValue) ballActuator.writeMicroseconds(1500);
+    else ballActuator.write(triggerValue+90);
+    
+    if(PS3.getButtonPress(TRIANGLE)) gutterMotor.write(GUTTER_UP_VALUE);
+    else if(PS3.getButtonPress(CROSS)) gutterMotor.write(GUTTER_DOWN_VALUE);
+    else gutterMotor.writeMicroseconds(1500); 
   }
-  */
 }
 #endif
 
