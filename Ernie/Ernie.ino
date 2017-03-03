@@ -154,6 +154,11 @@ Servo gutterMotor;
 int gutterInput = 0;
 int gutterValue = 0;
 
+#define PRIMARY 0 
+#define SECONDARY 1
+
+int peripheralState = PRIMARY;
+
 #endif
 //----------------------------------------------------------------------
 
@@ -300,7 +305,7 @@ void drive()
 
   int ThrottleL = ((Drive - (Turn / turnhandicap)) / handicap) + LEFT_ADJUST; //This is the final variable that decides motor speed.
   int ThrottleR = ((Drive + (Turn / turnhandicap)) / handicap) + RIGHT_ADJUST;
-  if (PS3.getButtonPress(L1)) { // This will flip the direction of the left stick to allow easier driving in reverse.
+  if (PS3.getButtonClick(SELECT)) { // This will flip the direction of the left stick to allow easier driving in reverse.
     ThrottleL = ((Drive + (Turn / turnhandicap)) / handicap) + LEFT_ADJUST;
     ThrottleR = ((Drive - (Turn / turnhandicap)) / handicap) + RIGHT_ADJUST;
     ThrottleL = -ThrottleL;
@@ -324,33 +329,68 @@ void peripherals()
   // we will actually split this into and inputs function and a peripherals function. for right now we just want to 
   // prove that all the parts move
 
-  // lifterMotor controls
-  if(PS3.getButtonPress(TRIANGLE)) lifterMotor.write(LIFTER_UP_VALUE);
-  else if(PS3.getButtonPress(CROSS)) lifterMotor.write(LIFTER_DOWN_VALUE);
-  else lifterMotor.write(1500);
+  if(PS3.getButtonClick(START)) {
+    if (PRIMARY == peripheralState) {
+      peripheralState = SECONDARY;          //primary/secondary mode control
+    if (SECONDARY == peripheralState) {
+      peripheralState = PRIMARY; 
+    }
+  }
 
-  // ballRoller controls
-  if(PS3.getButtonPress(CIRCLE)) ballRoller.write(BALL_ROLLER_IN_VALUE);
-  else if(PS3.getButtonPress(SQUARE)) ballRoller.write(BALL_ROLLER_OUT_VALUE);
-  else ballRoller.write(1500);
+  // lifterMotor controls     ***draw bridge***
+  if(PS3.getButtonPress(UP)) lifterMotor.write(LIFTER_UP_VALUE);
+  else if(PS3.getButtonPress(DOWN)) lifterMotor.write(LIFTER_DOWN_VALUE);
+  else lifterMotor.writeMicroseconds(1500);
 
-  // ballActuator controls
-  if(PS3.getButtonPress(UP)) ballActuator.write(BALL_ACTUATOR_UP_VALUE);
-  else if(PS3.getButtonPress(DOWN)) ballActuator.write(BALL_ACTUATOR_DOWN_VALUE);
-  else ballActuator.write(1500);
+  // ballRoller controls   
+  if (PRIMARY == peripheralState) { 
+    if(PS3.getButtonPress(SQUARE)) ballRoller.write(BALL_ROLLER_IN_VALUE);
+    else if(PS3.getButtonPress(CIRCLE)) ballRoller.write(BALL_ROLLER_OUT_VALUE);
+    else ballRoller.writeMicroseconds(1500);
 
-  // keyRoller controlls
-  if(PS3.getButtonPress(R1)) keyRoller.write(KEY_ROLLER_IN_VALUE);
-  else if(PS3.getButtonPress(L1)) keyRoller.write(KEY_ROLLER_OUT_VALUE);
-  else keyRoller.write(1500);
+    // ballActuator controls      ***ball lifter***
+    if(PS3.getButtonPress(TRIANGLE)) ballActuator.write(BALL_ACTUATOR_UP_VALUE);
+    else if(PS3.getButtonPress(CROSS)) ballActuator.write(BALL_ACTUATOR_DOWN_VALUE);
+    else ballActuator.writeMicroseconds(1500);
+  } 
+  
+  else if (SECONDARY == peripheralState) {
+      if(PS3.getButtonPress(R1)) ballRoller.write(BALL_ROLLER_IN_VALUE);
+      else if(PS3.getButtonPress(L1)) ballRoller.write(BALL_ROLLER_OUT_VALUE);
+      else ballRoller.writeMicroseconds(1500);
 
-  // gutterMotor controls -- this one is different because we want analog control
-  if(PS3.getButtonPress(R2)) gutterMotor.write(GUTTER_UP_VALUE);
-  else if(PS3.getButtonPress(L2)) gutterMotor.write(GUTTER_DOWN_VALUE);
-  else gutterMotor.write(GUTTER_STOP_VALUE);
+      // ballActuator controls      ***ball lifter***
+     if(PS3.getButtonPress(R2)) ballActuator.write(BALL_ACTUATOR_UP_VALUE);
+      else if(PS3.getButtonPress(L2)) ballActuator.write(BALL_ACTUATOR_DOWN_VALUE);
+     else ballActuator.writeMicroseconds(1500);
+  }
+
+  // keyRoller controls      ***
+  if (PRIMARY == peripheralState) {
+    if(PS3.getButtonPress(R1)) keyRoller.write(KEY_ROLLER_IN_VALUE);
+    else if(PS3.getButtonPress(L1)) keyRoller.write(KEY_ROLLER_OUT_VALUE);
+    else keyRoller.writeMicroseconds(1500);
+  
+    // gutterMotor controls -- this one is different because we want analog control
+    if(PS3.getButtonPress(R2)) gutterMotor.write(GUTTER_UP_VALUE);
+    else if(PS3.getButtonPress(L2)) gutterMotor.write(GUTTER_DOWN_VALUE);
+    else gutterMotor.write(GUTTER_STOP_VALUE);
+  }
+
+  else if (SECONDARY == peripheralState) {
+    if (PRIMARY == peripheralState) {
+    if(PS3.getButtonPress(SQUARE)) keyRoller.write(KEY_ROLLER_IN_VALUE);
+    else if(PS3.getButtonPress(CIRCLE)) keyRoller.write(KEY_ROLLER_OUT_VALUE);
+    else keyRoller.writeMicroseconds(1500);
+  
+    // gutterMotor controls -- this one is different because we want analog control
+    if(PS3.getButtonPress(TRIANGLE)) gutterMotor.write(GUTTER_UP_VALUE);
+    else if(PS3.getButtonPress(CROSS)) gutterMotor.write(GUTTER_DOWN_VALUE);
+    else gutterMotor.write(GUTTER_STOP_VALUE);
+  }
   /*
-  int gutterDownInput = map(PS3.getAnalogButton(R2), 0, 255, 0,  90); //just temp values that's why it's not global
-  int gutterUpInput   = map(PS3.getAnalogButton(L2), 0, 255, 0, -90);
+  int gutterDownInput = map(PS3.getAnalogButton(L2), 0, 255, 0, -90); //just temp values that's why it's not global
+  int gutterUpInput   = map(PS3.getAnalogButton(R2), 0, 255, 0,  90);
 
   if(abs(gutterDownInput) > abs(gutterUpInput)) gutterInput = gutterDownInput;
   else                                          gutterInput = gutterUpInput;
@@ -358,7 +398,7 @@ void peripherals()
   if(abs(gutterInput) < 10) gutterInput = 0;
   if(gutterInput == 0)
   {
-    gutterMotor.write(1500);
+    gutterMotor.writeMicroseconds(1500);
   }
   else
   {
@@ -367,7 +407,8 @@ void peripherals()
 
     if(gutterValue > 180) gutterValue = 180;
     else if(gutterValue < 0) gutterValue = 0;
-  
+
+    Serial.println(gutterValue);
     gutterMotor.write(gutterValue + 90);
    
   }
