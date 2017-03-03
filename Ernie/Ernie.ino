@@ -151,8 +151,8 @@ Servo gutterMotor;
 #define GUTTER_DOWN_VALUE 70
 #define GUTTER_STOP_VALUE 100
 
-int gutterInput = 0;
-int gutterValue = 0;
+int triggerInput = 0;
+int triggerValue = 0;
 
 #define PRIMARY 0 
 #define SECONDARY 1
@@ -342,8 +342,46 @@ void peripherals()
   else if(PS3.getButtonPress(DOWN)) lifterMotor.write(LIFTER_DOWN_VALUE);
   else lifterMotor.writeMicroseconds(1500);
 
+  // primary/secondary roller controls
+  if (PRIMARY == peripheralState)
+  {
+    if(PS3.getButtonPress(R1)) keyRoller.write(KEY_ROLLER_IN_VALUE);
+    else if(PS3.getButtonPress(L1)) keyRoller.write(KEY_ROLLER_OUT_VALUE);
+    else keyRoller.writeMicroseconds(1500);
+
+    if(PS3.getButtonPress(SQUARE)) ballRoller.write(BALL_ROLLER_IN_VALUE);
+    else if(PS3.getButtonPress(CIRCLE)) ballRoller.write(BALL_ROLLER_OUT_VALUE);
+    else ballRoller.writeMicroseconds(1500);
+  }
+  else
+  {
+    if(PS3.getButtonPress(SQUARE)) keyRoller.write(KEY_ROLLER_IN_VALUE);
+    else if(PS3.getButtonPress(CIRCLE)) keyRoller.write(KEY_ROLLER_OUT_VALUE);
+    else keyRoller.writeMicroseconds(1500);
+
+    if(PS3.getButtonPress(R1)) ballRoller.write(BALL_ROLLER_IN_VALUE);
+    else if(PS3.getButtonPress(L1)) ballRoller.write(BALL_ROLLER_OUT_VALUE);
+    else ballRoller.writeMicroseconds(1500);
+  }
+
+  int inputL2 = map(PS3.getAnalogButton(R2), 0, 255, 0, -90);
+  int inputR2 = map(PS3.getAnalogButton(L2), 0, 255, 0,  90);
+
+  if(abs(inputL2) > abs(inputR2)) triggerInput = inputL2;
+  else triggerInput = inputR2;
+  if(abs(triggerInput) < 10) triggerInput = 0;
+
+  if(triggerInput > triggerValue) triggerValue++;
+  else if(triggerInput < triggerValue) triggerValue--;
+
+  if(PRIMARY == peripheralState)
+  {
+    
+  }
+  
   // ballRoller controls   
-  if (PRIMARY == peripheralState) { 
+  if (PRIMARY == peripheralState) 
+  { 
     if(PS3.getButtonPress(SQUARE)) ballRoller.write(BALL_ROLLER_IN_VALUE);
     else if(PS3.getButtonPress(CIRCLE)) ballRoller.write(BALL_ROLLER_OUT_VALUE);
     else ballRoller.writeMicroseconds(1500);
@@ -353,8 +391,8 @@ void peripherals()
     else if(PS3.getButtonPress(CROSS)) ballActuator.write(BALL_ACTUATOR_DOWN_VALUE);
     else ballActuator.writeMicroseconds(1500);
   } 
-  
-  else if (SECONDARY == peripheralState) {
+  else 
+  {
       if(PS3.getButtonPress(R1)) ballRoller.write(BALL_ROLLER_IN_VALUE);
       else if(PS3.getButtonPress(L1)) ballRoller.write(BALL_ROLLER_OUT_VALUE);
       else ballRoller.writeMicroseconds(1500);
@@ -366,7 +404,8 @@ void peripherals()
   }
 
   // keyRoller controls      ***
-  if (PRIMARY == peripheralState) {
+  if (PRIMARY == peripheralState) 
+  {
     if(PS3.getButtonPress(R1)) keyRoller.write(KEY_ROLLER_IN_VALUE);
     else if(PS3.getButtonPress(L1)) keyRoller.write(KEY_ROLLER_OUT_VALUE);
     else keyRoller.writeMicroseconds(1500);
@@ -377,7 +416,8 @@ void peripherals()
     else gutterMotor.write(GUTTER_STOP_VALUE);
   }
 
-  else if (SECONDARY == peripheralState) {
+  else if (SECONDARY == peripheralState) 
+  {
     if (PRIMARY == peripheralState) {
     if(PS3.getButtonPress(SQUARE)) keyRoller.write(KEY_ROLLER_IN_VALUE);
     else if(PS3.getButtonPress(CIRCLE)) keyRoller.write(KEY_ROLLER_OUT_VALUE);
