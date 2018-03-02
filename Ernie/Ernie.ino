@@ -374,12 +374,7 @@ void drive()
     }
 
     */
-  }
-
-  // Test Code 
-  Serial.print(rightTankDrive+90);
-  
-  
+  }  
 }
 
 #ifdef PERIPHERALS
