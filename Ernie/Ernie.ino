@@ -268,8 +268,8 @@ void driveInputs() {
     So we map the controller input from it's original range of 0-255 to a range of -90-90.
     Victors use a range of 0-180. Reflecting this range over 0 makes some of the math to come simpler.
   */
-  leftYinput  = map(PS3.getAnalogHat(LeftHatY),  0, 255, -90, 90); //left joystick y-axis
-  rightYinput = map(PS3.getAnalogHat(RightHatY), 0, 255, -90, 90); //right joystick y-axis
+  leftYinput  = map(PS3.getAnalogHat(LeftHatY),  0, 255, -84, 84); //left joystick y-axis
+  rightYinput = map(PS3.getAnalogHat(RightHatY), 0, 255, -84, 84); //right joystick y-axis
   rightXinput = map(PS3.getAnalogHat(RightHatX), 0, 255, -90, 90); //x-axis
 
   /*
@@ -278,8 +278,8 @@ void driveInputs() {
      it is zero.
   */
   if (abs(leftYinput)  < 10) leftYinput = 0;
-  if (abs(rightYinput) < 10)rightYinput = 0;
-  if (abs(rightXinput) < 10)rightXinput = 0;
+  if (abs(rightYinput) < 10) rightYinput = 0;
+  if (abs(rightXinput) < 10) rightXinput = 0;
 }
 
 void drive()
@@ -346,21 +346,33 @@ void drive()
     rfmotor.write(right);
     lrmotor.write(left); //Send values to the rear speed controllers.
     rrmotor.write(right);
+    Serial.println("Arcade Mode");
   }
   else // TANK DRIVE
   {
+     Serial.println("Tank Mode");
     if(leftTankDrive < leftYinput)      leftTankDrive++;
     else if(leftTankDrive > leftYinput) leftTankDrive--;
+    
 
     if(rightTankDrive < rightYinput)      rightTankDrive++;
     else if(rightTankDrive > rightYinput) rightTankDrive--;
+  if (rightTankDrive+90>180) {
+      Serial.print("Right Out Of Range");
+      Serial.println(" ");
+      Serial.println(" ");
+    }
 
+/*
     if(FORWARD == driveDirection)
     {
+    */
       lfmotor.write(-leftTankDrive +90); //Sending values to the speed controllers
       rfmotor.write(rightTankDrive+90);
       lrmotor.write(-leftTankDrive +90); //Send values to the rear speed controllers.
       rrmotor.write(rightTankDrive+90);
+      /*
+      8
     }
     else
     {
@@ -369,7 +381,13 @@ void drive()
       rrmotor.write(-leftTankDrive +90); //Send values to the rear speed controllers.
       lrmotor.write(rightTankDrive+90);
     }
+
+    */
   }
+
+  // Test Code 
+  Serial.print(rightTankDrive+90);
+  
   
 }
 
