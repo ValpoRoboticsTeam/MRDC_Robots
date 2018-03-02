@@ -346,23 +346,15 @@ void drive()
     rfmotor.write(right);
     lrmotor.write(left); //Send values to the rear speed controllers.
     rrmotor.write(right);
-    Serial.println("Arcade Mode");
   }
   else // TANK DRIVE
   {
-     Serial.println("Tank Mode");
     if(leftTankDrive < leftYinput)      leftTankDrive++;
     else if(leftTankDrive > leftYinput) leftTankDrive--;
     
 
     if(rightTankDrive < rightYinput)      rightTankDrive++;
     else if(rightTankDrive > rightYinput) rightTankDrive--;
-  if (rightTankDrive+90>180) {
-      Serial.print("Right Out Of Range");
-      Serial.println(" ");
-      Serial.println(" ");
-    }
-
 /*
     if(FORWARD == driveDirection)
     {
@@ -372,7 +364,6 @@ void drive()
       lrmotor.write(-leftTankDrive +90); //Send values to the rear speed controllers.
       rrmotor.write(rightTankDrive+90);
       /*
-      8
     }
     else
     {
