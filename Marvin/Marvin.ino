@@ -1,20 +1,27 @@
 /*
-  __/\\\\\\\\\\\\\\\______________________________________________________
-   _\/\\\///////////_______________________________________________________
-   _\/\\\_____________________________________________/\\\_________________
-    _\/\\\\\\\\\\\_______/\\/\\\\\\\____/\\/\\\\\\____\///_______/\\\\\\\\__
-     _\/\\\///////_______\/\\\/////\\\__\/\\\////\\\____/\\\____/\\\/////\\\_
-      _\/\\\______________\/\\\___\///___\/\\\__\//\\\__\/\\\___/\\\\\\\\\\\__
-       _\/\\\______________\/\\\__________\/\\\___\/\\\__\/\\\__\//\\///////___
-        _\/\\\\\\\\\\\\\\\__\/\\\__________\/\\\___\/\\\__\/\\\___\//\\\\\\\\\\_
-         _\///////////////___\///___________\///____\///___\///_____\//////////__
+  __  __      _       ____   __     __            _   _     
+U|' \/ '|uU  /"\  uU |  _"\ u\ \   /"/u  ___     | \ |"|    
+\| |\/| |/ \/ _ \/  \| |_) |/ \ \ / //  |_"_|   <|  \| |>   
+ | |  | |  / ___ \   |  _ <   /\ V /_,-. | |    U| |\  |u   
+ |_|  |_| /_/   \_\  |_| \_\ U  \_/-(_/U/| |\u   |_| \_|    
+<<,-,,-.   \\    >>  //   \\_  //   .-,_|___|_,-.||   \\,-. 
+ (./  \.) (__)  (__)(__)  (__)(__)   \_)-' '-(_/ (_")  (_/  
 
-      \WWWWWWW/
-    _/`  o_o  `\_
-   (_    (_)    _)
-     \ '-...-' /
-     (`'-----'`)
-      `"""""""`
+
+                           nnnmmm
+            \||\       ;;;;%%%@@@@@@       \ //,
+             V|/     %;;%%%%%@@@@@@@@@@  ===Y//
+             68=== ;;;;%%%%%%@@@@@@@@@@@@    @Y
+             ;Y   ;;%;%%%%%%@@@@@@@@@@@@@@    Y
+             ;Y  ;;;+;%%%%%%@@@@@@@@@@@@@@@    Y
+             ;Y__;;;+;%%%%%%@@@@@@@@@@@@@@i;;__Y
+            iiY"";;   "uu%@@@@@@@@@@uu"   @"";;;>
+                   Y     "UUUUUUUUU"     @@
+                   `;       ___ _       @
+                     `;.  ,====\\=.  .;'
+                       ``""""`==\\=='
+                              `;=====
+                                ===  
 
   Ernie Base Drive Code
 
@@ -100,11 +107,8 @@
 #define RR_MOTOR 9
 
 #ifdef PERIPHERALS
-#define LIFTER_MOTOR     2 //we need a better name
-#define BALL_ROLLER      3
-#define BALL_ACTUATOR    4
-#define KEY_ROLLER       5
-#define GUTTER_MOTOR     6
+#define BOX_TIPPING     2 //we need a better name
+#define PULLY           3
 #endif
 //----------------------------------------------------------------------
 
@@ -130,28 +134,14 @@ Servo rrmotor;
 
 #ifdef PERIPHERALS
 //servo objects
-Servo lifterMotor;
-Servo ballRoller;
-Servo ballActuator;
-Servo keyRoller;
-Servo gutterMotor;
+Servo boxTipper;
+Servo pully;
 
-#define LIFTER_UP_VALUE  180
-#define LIFTER_DOWN_VALUE 0
+#define BOX_TIPPING_UP_VALUE  180
+#define BOX_TIPPING_DOWN_VALUE 0
 
-#define BALL_ROLLER_IN_VALUE 180
-#define BALL_ROLLER_OUT_VALUE 0
-
-#define BALL_ACTUATOR_UP_VALUE 180
-#define BALL_ACTUATOR_DOWN_VALUE 0
-
-#define KEY_ROLLER_IN_VALUE 105
-#define KEY_ROLLER_OUT_VALUE 75
-
-#define GUTTER_UP_VALUE 110
-#define GUTTER_DOWN_VALUE 80
-#define GUTTER_STOP_VALUE 100
-#define GUTTER_HANDICAP_VALUE 4
+#define PULLY_CW_VALUE 180
+#define PULLY_CWW_VALUE 0
 
 int triggerInput = 0;
 int triggerValue = 0;
@@ -170,10 +160,10 @@ int peripheralState = PRIMARY;
 #define TANK 0
 #define ARCADE 1
 
-#define FORWARD   1
-#define BACKWARD -1
+#define FORWARD  -1
+#define BACKWARD  1
 
-int driveDirection = FORWARD;
+int driveDirection = BACKWARD;
 int driveMode = TANK; // 0 for yx control, 1 for yy control
 int arcadeDrive = 0; //Initial speed before turning calculations
 int arcadeTurn = 0; //Turn is adjustment to drive for each motor separately to create turns
@@ -197,16 +187,10 @@ void setup() {
   rrmotor.attach(RR_MOTOR);
 
 #ifdef PERIPHERALS
-  lifterMotor.attach(LIFTER_MOTOR);
-  lifterMotor.writeMicroseconds(1500);
-  ballRoller.attach(BALL_ROLLER);
-  ballRoller.writeMicroseconds(1500);
-  ballActuator.attach(BALL_ACTUATOR);
-  ballActuator.writeMicroseconds(1500);
-  keyRoller.attach(KEY_ROLLER);
-  keyRoller.writeMicroseconds(1500);
-  gutterMotor.attach(GUTTER_MOTOR);
-  gutterMotor.writeMicroseconds(1500);
+  boxTipper.attach(BOX_TIPPING);
+  boxTipper.writeMicroseconds(1500);
+  pully.attach(PULLY);
+  pully.writeMicroseconds(1500);
 #endif
   //Initialize the USB port, with an error catch. New Programmers can ignore this section
   //-------------------------------------------------------------------------------------
@@ -270,7 +254,7 @@ void driveInputs() {
   */
   leftYinput  = map(PS3.getAnalogHat(LeftHatY),  0, 255, -84, 84); //left joystick y-axis
   rightYinput = map(PS3.getAnalogHat(RightHatY), 0, 255, -84, 84); //right joystick y-axis
-  rightXinput = map(PS3.getAnalogHat(RightHatX), 0, 255, -90, 90); //x-axis
+  rightXinput = map(PS3.getAnalogHat(RightHatX), 0, 255, -84, 84); //x-axis
 
   /*
      Joysticks have a "sticky" area around the middle of the joystick - this means they never go back
@@ -278,8 +262,8 @@ void driveInputs() {
      it is zero.
   */
   if (abs(leftYinput)  < 10) leftYinput = 0;
-  if (abs(rightYinput) < 10) rightYinput = 0;
-  if (abs(rightXinput) < 10) rightXinput = 0;
+  if (abs(rightYinput) < 10)rightYinput = 0;
+  if (abs(rightXinput) < 10)rightXinput = 0;
 }
 
 void drive()
@@ -351,19 +335,16 @@ void drive()
   {
     if(leftTankDrive < leftYinput)      leftTankDrive++;
     else if(leftTankDrive > leftYinput) leftTankDrive--;
-    
 
     if(rightTankDrive < rightYinput)      rightTankDrive++;
     else if(rightTankDrive > rightYinput) rightTankDrive--;
-/*
+
     if(FORWARD == driveDirection)
     {
-    */
       lfmotor.write(-leftTankDrive +90); //Sending values to the speed controllers
       rfmotor.write(rightTankDrive+90);
       lrmotor.write(-leftTankDrive +90); //Send values to the rear speed controllers.
       rrmotor.write(rightTankDrive+90);
-      /*
     }
     else
     {
@@ -372,9 +353,8 @@ void drive()
       rrmotor.write(-leftTankDrive +90); //Send values to the rear speed controllers.
       lrmotor.write(rightTankDrive+90);
     }
-
-    */
-  }  
+  }
+  
 }
 
 #ifdef PERIPHERALS
@@ -397,35 +377,18 @@ void peripherals()
     }
   }
 
-  // lifterMotor controls     ***draw bridge***
-  if(PS3.getButtonPress(UP)) lifterMotor.write(LIFTER_UP_VALUE);
-  else if(PS3.getButtonPress(DOWN)) lifterMotor.write(LIFTER_DOWN_VALUE);
-  else lifterMotor.writeMicroseconds(1500);
+  // Box tipper controls    
+  if(PS3.getButtonPress(UP)) boxTipper.write(BOX_TIPPING_UP_VALUE);
+  else if(PS3.getButtonPress(DOWN)) boxTipper.write(BOX_TIPPING_DOWN_VALUE);
+  else boxTipper.writeMicroseconds(1500);
 
-  // primary/secondary roller controls
-  if (PRIMARY == peripheralState)
-  {
-    if(PS3.getButtonPress(R1)) keyRoller.write(KEY_ROLLER_IN_VALUE);
-    else if(PS3.getButtonPress(L1)) keyRoller.write(KEY_ROLLER_OUT_VALUE);
-    else keyRoller.writeMicroseconds(1500);
+  // PULLY
+  if(PS3.getButtonPress(LEFT)) pully.write(PULLY_CW_VALUE);
+  else if(PS3.getButtonPress(RIGHT)) pully.write(PULLY_CWW_VALUE);
+  else pully.writeMicroseconds(1500);
 
-    if(PS3.getButtonPress(SQUARE)) ballRoller.write(BALL_ROLLER_IN_VALUE);
-    else if(PS3.getButtonPress(CIRCLE)) ballRoller.write(BALL_ROLLER_OUT_VALUE);
-    else ballRoller.writeMicroseconds(1500);
-  }
-  else
-  {
-    if(PS3.getButtonPress(SQUARE)) keyRoller.write(KEY_ROLLER_IN_VALUE);
-    else if(PS3.getButtonPress(CIRCLE)) keyRoller.write(KEY_ROLLER_OUT_VALUE);
-    else keyRoller.writeMicroseconds(1500);
-
-    if(PS3.getButtonPress(R1)) ballRoller.write(BALL_ROLLER_IN_VALUE);
-    else if(PS3.getButtonPress(L1)) ballRoller.write(BALL_ROLLER_OUT_VALUE);
-    else ballRoller.writeMicroseconds(1500);
-  }
-
-  int inputL2 = map(PS3.getAnalogButton(R2), 0, 255, 0, -90);
-  int inputR2 = map(PS3.getAnalogButton(L2), 0, 255, 0,  90);
+  int inputL2 = map(PS3.getAnalogButton(R2), 0, 255, 0, -84);
+  int inputR2 = map(PS3.getAnalogButton(L2), 0, 255, 0,  84);
 
   if(abs(inputL2) > abs(inputR2)) triggerInput = inputL2;
   else triggerInput = inputR2;
@@ -437,27 +400,9 @@ void peripherals()
   #ifdef DEBUG
     Serial.println(triggerValue);
   #endif
-  if(PRIMARY == peripheralState)
-  {
-    if(!triggerValue) gutterMotor.write(GUTTER_STOP_VALUE);
-    else gutterMotor.write((triggerValue/GUTTER_HANDICAP_VALUE)+90);
-
-    if(PS3.getButtonPress(TRIANGLE)) ballActuator.write(BALL_ACTUATOR_UP_VALUE);
-    else if(PS3.getButtonPress(CROSS)) ballActuator.write(BALL_ACTUATOR_DOWN_VALUE);
-    else ballActuator.writeMicroseconds(1500);    
-  }
-  else
-  {
-    if(!triggerValue) ballActuator.writeMicroseconds(1500);
-    else ballActuator.write(triggerValue+90);
-    
-    if(PS3.getButtonPress(TRIANGLE)) gutterMotor.write(GUTTER_UP_VALUE);
-    else if(PS3.getButtonPress(CROSS)) gutterMotor.write(GUTTER_DOWN_VALUE);
-    else gutterMotor.writeMicroseconds(1500); 
-  }
-}
+  
 #endif
-
+}
 /*
   Completely stops the motors
   IMPORTANT NOTE: This is the equivalent of putting your car in NEUTRAL, if on a hill, it will roll! If it's already moving, it will coast!
@@ -471,11 +416,8 @@ void stop()
 
   
 #ifdef PERIPHERALS
-  lifterMotor.writeMicroseconds(1500);
-  ballRoller.writeMicroseconds(1500);
-  ballActuator.writeMicroseconds(1500);
-  keyRoller.writeMicroseconds(1500);
-  gutterMotor.writeMicroseconds(1500);
+  boxTipper.writeMicroseconds(1500);
+  pully.writeMicroseconds(1500);
 #endif
 }
 
